@@ -37,7 +37,7 @@ export default async function CheckoutPage({
 
           <div>
             <label htmlFor="gameUserId" className="block text-sm font-medium mb-1">
-              ID Game / Nama
+              ID Game / Username
             </label>
             <input
               type="text"
