@@ -1,18 +1,17 @@
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { createGame, toggleGameActive } from '@/lib/admin-actions';
+import { updateOrderStatus } from '@/lib/actions';
 import Link from 'next/link';
 import {
-  ShieldAlert,
   ShieldCheck,
-  Plus,
-  Eye,
-  EyeOff,
-  Package,
+  ShieldAlert,
+  Clock,
+  CheckCircle2,
+  XCircle,
   Gamepad2,
 } from 'lucide-react';
 
-export default async function AdminGamesPage() {
+export default async function AdminPage() {
   const user = await getCurrentUser();
 
   if (!user || user.role !== 'admin') {
@@ -29,105 +28,122 @@ export default async function AdminGamesPage() {
     );
   }
 
-  const games = await prisma.game.findMany({
-    orderBy: { id: 'asc' },
-    include: { _count: { select: { products: true } } },
+  const orders = await prisma.order.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      product: { include: { game: true } },
+      user: true,
+    },
   });
+
+  const statusConfig = {
+    pending: {
+      label: 'Pending',
+      style: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
+      icon: Clock,
+    },
+    success: {
+      label: 'Success',
+      style: 'bg-green-500/10 text-green-300 border-green-500/30',
+      icon: CheckCircle2,
+    },
+    failed: {
+      label: 'Failed',
+      style: 'bg-red-500/10 text-red-300 border-red-500/30',
+      icon: XCircle,
+    },
+  } as Record<string, { label: string; style: string; icon: typeof Clock }>;
 
   return (
     <main className="min-h-screen px-4 py-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Gamepad2 className="w-6 h-6 text-purple-400" />
-            Kelola Game
+            <ShieldCheck className="w-6 h-6 text-purple-400" />
+            Admin - Kelola Transaksi
           </h1>
           <Link
-            href="/admin"
+            href="/admin/games"
             className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-sm px-3 py-2 rounded-lg transition"
           >
-            <ShieldCheck className="w-4 h-4" />
-            Kelola Transaksi
+            <Gamepad2 className="w-4 h-4" />
+            Kelola Game
           </Link>
         </div>
 
-        {/* Form tambah game baru */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
-          <h2 className="font-semibold mb-3 text-sm">Tambah Game Baru</h2>
-          <form action={createGame} className="space-y-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Nama Game</label>
-              <input
-                type="text"
-                name="name"
-                required
-                placeholder="Contoh: Honor of Kings"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Deskripsi</label>
-              <input
-                type="text"
-                name="description"
-                placeholder="Top up token Honor of Kings termurah"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition"
-            >
-              <Plus className="w-4 h-4" />
-              Tambah Game
-            </button>
-          </form>
-        </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800/50 border-b border-slate-800">
+              <tr>
+                <th className="text-left p-3 text-slate-400 font-medium">ID</th>
+                <th className="text-left p-3 text-slate-400 font-medium">User</th>
+                <th className="text-left p-3 text-slate-400 font-medium">Item</th>
+                <th className="text-left p-3 text-slate-400 font-medium">ID Game</th>
+                <th className="text-left p-3 text-slate-400 font-medium">Total</th>
+                <th className="text-left p-3 text-slate-400 font-medium">Status</th>
+                <th className="text-left p-3 text-slate-400 font-medium">Tanggal</th>
+                <th className="text-left p-3 text-slate-400 font-medium">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order) => {
+                const current = statusConfig[order.status] || statusConfig.pending;
+                const StatusIcon = current.icon;
 
-        {/* Daftar game */}
-        <div className="space-y-3">
-          {games.map((game) => (
-            <div
-              key={game.id}
-              className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold">{game.name}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-                      game.isActive
-                        ? 'bg-green-500/10 text-green-300 border-green-500/30'
-                        : 'bg-slate-700/30 text-slate-400 border-slate-600/30'
-                    }`}
-                  >
-                    {game.isActive ? 'Aktif' : 'Disembunyikan'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 truncate">{game.description}</p>
-                <p className="text-xs text-slate-500 mt-1">{game._count.products} produk</p>
-              </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Link
-                  href={`/admin/games/${game.id}`}
-                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-sm px-3 py-1.5 rounded-lg transition"
-                >
-                  <Package className="w-4 h-4" />
-                  Kelola
-                </Link>
-                <form action={toggleGameActive.bind(null, game.id, game.isActive)}>
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-sm px-3 py-1.5 rounded-lg transition"
-                    title={game.isActive ? 'Sembunyikan' : 'Tampilkan'}
-                  >
-                    {game.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </form>
-              </div>
-            </div>
-          ))}
+                return (
+                  <tr key={order.id} className="border-b border-slate-800 last:border-0 hover:bg-slate-800/30 transition">
+                    <td className="p-3 font-medium">#{order.id}</td>
+                    <td className="p-3">
+                      {order.user ? (
+                        <>
+                          <div className="font-medium">{order.user.name}</div>
+                          <div className="text-slate-500 text-xs">{order.user.email}</div>
+                        </>
+                      ) : (
+                        <span className="text-slate-500">-</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div className="font-medium">{order.product.game.name}</div>
+                      <div className="text-slate-500 text-xs">{order.product.name}</div>
+                    </td>
+                    <td className="p-3 text-slate-300">{order.gameUserId}</td>
+                    <td className="p-3 text-purple-400 font-medium">
+                      Rp {order.totalPrice.toLocaleString('id-ID')}
+                    </td>
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${current.style}`}>
+                        <StatusIcon className="w-3 h-3" />
+                        {current.label}
+                      </span>
+                    </td>
+                    <td className="p-3 text-slate-500 text-xs">
+                      {order.createdAt.toLocaleString('id-ID')}
+                    </td>
+                    <td className="p-3">
+                      <form action={updateOrderStatus.bind(null, order.id)} className="flex gap-2">
+                        <select
+                          name="status"
+                          defaultValue={order.status}
+                          className="bg-slate-950 border border-slate-800 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="success">Success</option>
+                          <option value="failed">Failed</option>
+                        </select>
+                        <button
+                          type="submit"
+                          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2.5 py-1 rounded-md text-xs hover:opacity-90 transition"
+                        >
+                          Update
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </main>

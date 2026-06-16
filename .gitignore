@@ -43,4 +43,11 @@ next-env.d.ts
 #Claude
 .CLAUDE.md
 
+#env
+.env
+.env.local
+.env*.local
+node_modules/
+.next/
+
 /app/generated/prisma
